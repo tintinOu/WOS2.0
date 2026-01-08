@@ -235,7 +235,13 @@ const PDFOrder = ({ data }) => {
     const repairItems = getItemsByType('Repair');
     const replaceItems = getItemsByType('Replace');
     const blendItems = getItemsByType('Blend');
-    const polishItems = getItemsByType('Polish/Touch up');
+    const fourthQuadrantItems = items.filter(
+        item => (item.type === 'Polish/Touch up' || item.type === 'Other') && item.desc && item.desc.trim().length > 0
+    );
+
+    // Determine 4th Quadrant Title
+    const hasOtherItems = fourthQuadrantItems.some(item => item.type === 'Other');
+    const fourthQuadrantTitle = hasOtherItems ? 'OTHER' : 'POLISH';
 
     return (
         <Document>
@@ -343,18 +349,24 @@ const PDFOrder = ({ data }) => {
                             ))}
                         </View>
 
-                        {/* POLISH */}
+                        {/* 4th QUADRANT (POLISH or OTHER) */}
                         <View style={styles.column}>
                             <View style={styles.typeHeaderBox}>
-                                <Text style={styles.typeHeaderTitle}>POLISH</Text>
-                                <Text style={styles.typeHeaderCount}>{polishItems.length}</Text>
+                                <Text style={styles.typeHeaderTitle}>{fourthQuadrantTitle}</Text>
+                                <Text style={styles.typeHeaderCount}>{fourthQuadrantItems.length}</Text>
                             </View>
-                            {polishItems.map((item, i) => (
-                                <View key={i} style={styles.listItem}>
-                                    <Text style={styles.bullet}>•</Text>
-                                    <Text style={styles.itemText}>{item.desc.toUpperCase()}</Text>
-                                </View>
-                            ))}
+                            {fourthQuadrantItems.map((item, i) => {
+                                let displayText = item.desc.toUpperCase();
+                                if (item.type === 'Other' && item.customTitle) {
+                                    displayText = `[${item.customTitle.toUpperCase()}] - ${displayText}`;
+                                }
+                                return (
+                                    <View key={i} style={styles.listItem}>
+                                        <Text style={styles.bullet}>•</Text>
+                                        <Text style={styles.itemText}>{displayText}</Text>
+                                    </View>
+                                );
+                            })}
                         </View>
                     </View>
 

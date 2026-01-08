@@ -75,12 +75,17 @@ function App() {
     const duration = getDuration();
 
     const addLineItem = () => {
-        setItems(prev => [...prev, { id: Date.now(), type: 'Repair', desc: '' }]);
+        setItems(prev => {
+            const lastItem = prev.length > 0 ? prev[prev.length - 1] : null;
+            const lastType = lastItem ? lastItem.type : 'Repair';
+            const lastCustomTitle = (lastItem && lastItem.type === 'Other') ? lastItem.customTitle : '';
+            return [...prev, { id: Date.now(), type: lastType, desc: '', customTitle: lastCustomTitle }];
+        });
     };
 
     const removeItem = (id) => {
         if (items.length === 1) {
-            setItems([{ id: Date.now(), type: 'Repair', desc: '' }]);
+            setItems([{ id: Date.now(), type: 'Repair', desc: '', customTitle: '' }]);
             return;
         }
         setItems(items.filter(item => item.id !== id));
@@ -95,7 +100,10 @@ function App() {
             // Auto-add logical
             const index = newItems.findIndex(item => item.id === id);
             if (field === 'desc' && value && index === newItems.length - 1) {
-                newItems.push({ id: Date.now(), type: 'Repair', desc: '' });
+                const currentItem = newItems[index];
+                const currentType = currentItem.type;
+                const currentCustomTitle = (currentType === 'Other') ? currentItem.customTitle : '';
+                newItems.push({ id: Date.now(), type: currentType, desc: '', customTitle: currentCustomTitle });
             }
 
             return newItems;
@@ -329,16 +337,28 @@ function App() {
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-300 mt-1 select-none">
                                         {(index + 1).toString().padStart(2, '0')}
                                     </div>
-                                    <select
-                                        value={item.type}
-                                        onChange={(e) => updateItem(item.id, 'type', e.target.value)}
-                                        className="w-32 bg-gray-50 text-gray-900 text-xs font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3 px-3 outline-none cursor-pointer"
-                                    >
-                                        <option value="Repair">Repair</option>
-                                        <option value="Replace">Replace</option>
-                                        <option value="Blend">Blend</option>
-                                        <option value="Polish/Touch up">Polish</option>
-                                    </select>
+                                    <div className="flex flex-col gap-2">
+                                        <select
+                                            value={item.type}
+                                            onChange={(e) => updateItem(item.id, 'type', e.target.value)}
+                                            className="w-32 bg-gray-50 text-gray-900 text-xs font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3 px-3 outline-none cursor-pointer"
+                                        >
+                                            <option value="Repair">Repair</option>
+                                            <option value="Replace">Replace</option>
+                                            <option value="Blend">Blend</option>
+                                            <option value="Polish/Touch up">Polish</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                        {item.type === 'Other' && (
+                                            <input
+                                                type="text"
+                                                value={item.customTitle || ''}
+                                                onChange={(e) => updateItem(item.id, 'customTitle', e.target.value)}
+                                                className="w-32 bg-gray-50 text-gray-900 text-[10px] font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-2 px-3 outline-none placeholder-gray-400"
+                                                placeholder="Title"
+                                            />
+                                        )}
+                                    </div>
                                     <input
                                         type="text"
                                         value={item.desc}
