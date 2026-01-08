@@ -1,0 +1,45 @@
+/* Basic resets are handled by Tailwind, this handles specific Print logic */
+
+@media print {
+    /* Hide everything that is NOT the print area */
+    body * {
+        visibility: hidden;
+    }
+    
+    /* Hide specific non-print elements strictly */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Show the print area and its children */
+    #printArea, #printArea * {
+        visibility: visible;
+    }
+
+    /* Checkbox appearance in print (if we wanted them, but we are using text instead) */
+    
+    /* Position the print area absolutely to take up the whole page */
+    #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px; /* Safe print margin */
+        display: block !important;
+        background: white;
+    }
+    
+    /* Remove shadows and backgrounds for cleaner ink usage */
+    .shadow-lg, .shadow-sm {
+        box-shadow: none !important;
+    }
+    
+    /* Ensure inputs look like text (though we map them to spans in the print view) */
+}
+
+/* Custom enhancements */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
