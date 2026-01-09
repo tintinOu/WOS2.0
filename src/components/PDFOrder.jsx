@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
 
     // Date Block Wrapper
     dateBlock: {
-        width: 150, // Fixed width to ensure it renders
+        width: 180, // Widened to fit date content
         alignItems: 'flex-end',
         justifyContent: 'flex-end',
     },
@@ -266,24 +266,22 @@ const PDFOrder = ({ data }) => {
                     </View>
 
                     <View style={styles.dateBlock}>
-                        {dates?.start && (
-                            <View>
-                                {/* Start Date */}
-                                <View style={styles.dateRow}>
-                                    <Text style={styles.dateLabel}>START:</Text>
-                                    <Text style={styles.dateValue}>{formatDateWithDay(dates.start)}</Text>
-                                </View>
-
-                                {/* Due Date (Amplified) */}
-                                <View style={styles.dateRow}>
-                                    <Text style={styles.dateLabel}>DUE:</Text>
-                                    <Text style={styles.dateValueLarge}>{formatDateWithDay(dates.end)}</Text>
-                                </View>
-
-                                {/* Duration Pilled Below */}
-                                {duration && <Text style={styles.durationText}>{duration}</Text>}
+                        <View>
+                            {/* Start Date */}
+                            <View style={styles.dateRow}>
+                                <Text style={styles.dateLabel}>START:</Text>
+                                <Text style={styles.dateValue}>{dates?.start ? formatDateWithDay(dates.start) : 'N/A'}</Text>
                             </View>
-                        )}
+
+                            {/* Due Date (Amplified) */}
+                            <View style={styles.dateRow}>
+                                <Text style={styles.dateLabel}>DUE:</Text>
+                                <Text style={styles.dateValueLarge}>{dates?.end ? formatDateWithDay(dates.end) : 'N/A'}</Text>
+                            </View>
+
+                            {/* Duration Pilled Below */}
+                            {duration && <Text style={styles.durationText}>{duration}</Text>}
+                        </View>
 
                         {/* VIN - Aligned right, bottom of block */}
                         {vehicle.vin && (
