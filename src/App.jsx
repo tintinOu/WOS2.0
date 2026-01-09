@@ -29,7 +29,7 @@ function App() {
         if (dateInputRef.current) {
             flatpickr(dateInputRef.current, {
                 mode: "range",
-                dateFormat: "M jS D", // e.g. Jan 6th Tue
+                dateFormat: "M j D", // e.g. Jan 6 Fri
                 locale: {
                     rangeSeparator: ' TO ' // uppercase separator
                 },
