@@ -282,7 +282,7 @@ function App() {
                                 </div>
                             )}
                         </div>
-                        <span className="text-[9px] text-gray-300 font-bold tracking-wider uppercase">Beta: Only works with 311 PDF</span>
+                        <span className="text-[9px] text-gray-500 font-bold tracking-wider uppercase">Beta: Only works with 311 Estimates</span>
 
                         {/* Hidden Input */}
                         <input
