@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 import PDFOrder from './components/PDFOrder';
-import { X, Calendar, Wrench, Printer, FileText, Info } from 'lucide-react';
+import { X, Calendar, Wrench, Printer, FileText, Info, Sparkles, Check, Loader2 } from 'lucide-react';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
 
 function App() {
-    const [showPreview, setShowPreview] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const dateInputRef = useRef(null);
 
@@ -20,6 +19,11 @@ function App() {
     // New State for Details
     const [vehicleDetails, setVehicleDetails] = useState(null);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+    // Auto-Fill State
+    const [uploadStatus, setUploadStatus] = useState('idle');
+    const [highlightMissing, setHighlightMissing] = useState(false);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         if (dateInputRef.current) {
@@ -173,268 +177,376 @@ function App() {
         notes
     };
 
-    return (
-        <div className="min-h-screen py-12 px-4 flex justify-center items-start bg-gray-50">
-            <main className="w-full max-w-4xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+    // Handle AI Auto-Fill
+    const handleAutoFill = (data) => {
+        if (data.customer) {
+            setCustomer(prev => ({
+                ...prev,
+                name: data.customer.name || prev.name,
+                phone: data.customer.phone || prev.phone
+            }));
+        }
+        if (data.vehicle) {
+            setVehicle(prev => ({
+                ...prev,
+                year: data.vehicle.year || prev.year,
+                makeModel: data.vehicle.makeModel || prev.makeModel,
+                plate: data.vehicle.plate || prev.plate,
+                vin: data.vehicle.vin || prev.vin
+            }));
+        }
+        if (data.items && data.items.length > 0) {
+            const newItems = data.items.map((item, i) => ({
+                id: Date.now() + i,
+                type: item.type || 'Repair',
+                desc: item.desc || '',
+                partNum: item.partNum || '',
+                customTitle: item.customTitle || ''
+            }));
+            // Add empty row at the end
+            newItems.push({ id: Date.now() + data.items.length, type: 'Repair', desc: '', customTitle: '' });
+            setItems(newItems);
+        }
+        if (data.notes) {
+            setNotes(data.notes);
+        }
+    };
 
-                {/* Header (Centered) */}
-                <header className="bg-white px-8 py-8 border-b border-gray-100 flex flex-col items-center justify-center gap-3">
-                    <div className="text-center">
-                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase">311 Auto Body</h1>
-                        <p className="text-sm text-gray-400 font-bold tracking-[0.2em] mt-1 ml-1">WORK ORDER SYSTEM</p>
+    // File Upload Handlers
+    const handleFileUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadStatus('uploading');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+        try {
+            const response = await fetch(`${API_URL}/analyze`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Failed');
+
+            const data = await response.json();
+            handleAutoFill(data);
+            setUploadStatus('success');
+            setHighlightMissing(true);
+
+            // Reset after 3s
+            setTimeout(() => setUploadStatus('idle'), 3000);
+        } catch (error) {
+            console.error(error);
+            setUploadStatus('error');
+            setTimeout(() => setUploadStatus('idle'), 3000);
+        }
+
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    return (
+        <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
+
+            {/* LEFT PANEL: Input Form (50%) */}
+            <div className="w-1/2 h-full flex flex-col bg-white border-r border-gray-200 shadow-xl z-10">
+                {/* Header */}
+                <header className="bg-white px-8 py-6 border-b border-gray-100 flex flex-row items-center justify-between gap-3 shrink-0">
+                    <div className="text-left">
+                        <h1 className="text-2xl font-black tracking-tight text-gray-900 uppercase">311 Auto Body</h1>
+                        <p className="text-xs text-gray-400 font-bold tracking-[0.2em] mt-1 ml-1">WORK ORDER SYSTEM</p>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploadStatus === 'uploading'}
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                <Sparkles size={14} />
+                                <span>Let Justin Fill</span>
+                            </button>
+
+                            {/* Status Icons */}
+                            {uploadStatus === 'uploading' && <Loader2 className="animate-spin text-blue-600" size={18} />}
+                            {uploadStatus === 'success' && <Check className="text-green-600" size={18} />}
+                            {uploadStatus === 'error' && (
+                                <div className="group relative">
+                                    <X className="text-red-600 cursor-help" size={18} />
+                                    <span className="absolute right-0 top-6 w-32 bg-black text-white text-[10px] p-2 rounded shadow-lg hidden group-hover:block z-10">Upload failed</span>
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-[9px] text-gray-300 font-bold tracking-wider uppercase">Beta: Only works with 311 PDF</span>
+
+                        {/* Hidden Input */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            accept=".pdf"
+                            className="hidden"
+                        />
                     </div>
                 </header>
 
-                {/* Dashboard Form */}
-                <div className="p-8 space-y-12">
+                {/* Dashboard Form (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-12">
+                    {/* Helper for Input Styles */}
+                    {(() => {
+                        const getInputClass = (val) => {
+                            const isMissing = highlightMissing && !val;
+                            return `w-full font-bold rounded-xl border-2 transition-all py-3.5 px-5 outline-none focus:ring-4 focus:ring-blue-600/5 focus:bg-white
+                                ${isMissing
+                                    ? 'bg-yellow-50 border-yellow-400 text-gray-900 placeholder-yellow-600/50'
+                                    : 'bg-gray-50 border-transparent text-gray-900 focus:border-blue-600/10'}`;
+                        };
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
+                        return (
+                            <div className="flex flex-col gap-12">
+                                {/* grid-cols-2 for top section */}
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                                    {/* Customer Section */}
+                                    <section className="space-y-6">
+                                        <div>
+                                            <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] mb-6 flex items-center gap-3">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
+                                                Customer Details
+                                            </h2>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={customer.name}
+                                                        onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                                                        className={getInputClass(customer.name)}
+                                                        placeholder="e.g. Jane Smith"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
+                                                    <input
+                                                        type="tel"
+                                                        value={customer.phone}
+                                                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                                                        className={getInputClass(customer.phone)}
+                                                        placeholder="(555) 000-0000"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
 
-                        {/* Customer Section */}
-                        <section className="space-y-8">
-                            <div>
-                                <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] mb-6 flex items-center gap-3">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
-                                    Customer Details
-                                </h2>
-                                <div className="space-y-5">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
-                                        <input
-                                            type="text"
-                                            value={customer.name}
-                                            onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                                            className="w-full bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3.5 px-5 outline-none"
-                                            placeholder="e.g. Jane Smith"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            value={customer.phone}
-                                            onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                                            className="w-full bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3.5 px-5 outline-none"
-                                            placeholder="(555) 000-0000"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Work Schedule (Intuitive Flatpickr) */}
-                            <div className="pt-8 border-t border-gray-50">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <Calendar size={14} className="text-blue-600" /> Work Schedule
-                                </label>
-                                <input
-                                    ref={dateInputRef}
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select Date Range..."
-                                    className="w-full bg-white text-gray-900 font-black text-center rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 py-4 px-4 outline-none transition-all cursor-pointer shadow-sm hover:border-gray-200"
-                                />
-                                {dates.start && (
-                                    <div className="mt-3 flex justify-center gap-4 text-[10px] font-black uppercase text-blue-600 bg-blue-50/50 py-2 rounded-lg">
-                                        <span>Start: {dates.start}</span>
-                                        <span className="text-gray-300">|</span>
-                                        <span>Due: {dates.end} {duration && <span className="ml-2 text-blue-900 bg-blue-200 px-2 py-0.5 rounded-md">[{duration}]</span>}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
-
-                        {/* Vehicle Section */}
-                        <section>
-                            <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] mb-6 flex items-center gap-3">
-                                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
-                                Vehicle Information
-                            </h2>
-                            <div className="grid grid-cols-2 gap-5 mb-6">
-                                <div className="col-span-2">
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">VIN Number</label>
-                                    <input
-                                        type="text"
-                                        value={vehicle.vin}
-                                        onChange={(e) => {
-                                            const newVin = e.target.value.toUpperCase();
-                                            setVehicle({ ...vehicle, vin: newVin });
-                                            // Reset details if VIN changes
-                                            if (newVin.length !== 17) setVehicleDetails(null);
-                                            if (newVin.length === 17) {
-                                                decodeVin(newVin);
-                                            }
-                                        }}
-                                        maxLength={17}
-                                        className="w-full bg-gray-50 text-gray-900 font-mono text-sm tracking-[0.2em] rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3.5 px-5 outline-none uppercase"
-                                        placeholder="1HG..."
-                                    />
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Make & Model</label>
-                                    <input
-                                        type="text"
-                                        value={vehicle.makeModel}
-                                        onChange={(e) => setVehicle({ ...vehicle, makeModel: e.target.value })}
-                                        className="w-full bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3.5 px-5 outline-none"
-                                        placeholder="Toyota Camry"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Plate Number</label>
-                                    <input
-                                        type="text"
-                                        value={vehicle.plate}
-                                        onChange={(e) => setVehicle({ ...vehicle, plate: e.target.value })}
-                                        className="w-full bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3.5 px-5 outline-none uppercase"
-                                        placeholder="ABC-123"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Year</label>
-                                    <input
-                                        type="text"
-                                        value={vehicle.year}
-                                        onChange={(e) => setVehicle({ ...vehicle, year: e.target.value })}
-                                        className="w-full bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3.5 px-5 outline-none"
-                                        placeholder="2023"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Vehicle Detail Button */}
-                            <button
-                                onClick={() => setShowDetailsModal(true)}
-                                disabled={!vehicleDetails}
-                                className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-wider transition-all
-                                    ${vehicleDetails
-                                        ? 'bg-blue-600 text-white shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5'
-                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    }`}
-                            >
-                                <Info size={16} />
-                                More Vehicle Details
-                            </button>
-                        </section>
-                    </div>
-
-                    {/* Job Details Section */}
-                    <section className="pt-8 border-t border-gray-100">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] flex items-center gap-3">
-                                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
-                                Job Details
-                            </h2>
-                            <button
-                                onClick={addLineItem}
-                                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 text-[10px] font-black uppercase tracking-wider rounded-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm"
-                            >
-                                <span>+ Add Item</span>
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            {items.map((item, index) => (
-                                <div key={item.id} className="group flex items-start gap-4">
-                                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-300 mt-1 select-none">
-                                        {(index + 1).toString().padStart(2, '0')}
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        <select
-                                            value={item.type}
-                                            onChange={(e) => updateItem(item.id, 'type', e.target.value)}
-                                            className="w-32 bg-gray-50 text-gray-900 text-xs font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3 px-3 outline-none cursor-pointer"
-                                        >
-                                            <option value="Repair">Repair</option>
-                                            <option value="Replace">Replace</option>
-                                            <option value="Blend">Blend</option>
-                                            <option value="Polish/Touch up">Polish</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                        {item.type === 'Other' && (
+                                        {/* Work Schedule */}
+                                        <div className="pt-6 border-t border-gray-50">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <Calendar size={14} className="text-blue-600" /> Work Schedule
+                                            </label>
                                             <input
+                                                ref={dateInputRef}
                                                 type="text"
-                                                value={item.customTitle || ''}
-                                                onChange={(e) => updateItem(item.id, 'customTitle', e.target.value)}
-                                                className="w-32 bg-gray-50 text-gray-900 text-[10px] font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-2 px-3 outline-none placeholder-gray-400"
-                                                placeholder="Title"
+                                                readOnly
+                                                placeholder="Select Date Range..."
+                                                className={`w-full text-center rounded-xl border-2 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 py-4 px-4 outline-none transition-all cursor-pointer shadow-sm
+                                                    ${(highlightMissing && (!dates.start || !dates.end))
+                                                        ? 'bg-yellow-50 border-yellow-400 text-gray-900 font-black'
+                                                        : 'bg-white border-gray-100 text-gray-900 font-black hover:border-gray-200'}`}
                                             />
-                                        )}
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={item.desc}
-                                        onChange={(e) => updateItem(item.id, 'desc', e.target.value)}
-                                        className="flex-1 bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3 px-5 outline-none uppercase placeholder-gray-300"
-                                        placeholder="Description of work..."
-                                    />
-                                    <button
-                                        onClick={() => removeItem(item.id)}
-                                        className="h-[46px] w-[46px] rounded-xl bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:shadow-red-500/10 hover:shadow-lg transition-all flex items-center justify-center"
-                                        tabIndex={-1}
-                                    >
-                                        <X size={18} />
-                                    </button>
+                                            {dates.start && (
+                                                <div className="mt-3 flex justify-center gap-4 text-[10px] font-black uppercase text-blue-600 bg-blue-50/50 py-2 rounded-lg">
+                                                    <span>Start: {dates.start}</span>
+                                                    <span className="text-gray-300">|</span>
+                                                    <span>Due: {dates.end} {duration && <span className="ml-2 text-blue-900 bg-blue-200 px-2 py-0.5 rounded-md">[{duration}]</span>}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* Vehicle Section */}
+                                    <section>
+                                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] mb-6 flex items-center gap-3">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
+                                            Vehicle Information
+                                        </h2>
+                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                            <div className="col-span-2">
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">VIN Number</label>
+                                                <input
+                                                    type="text"
+                                                    value={vehicle.vin}
+                                                    onChange={(e) => {
+                                                        const newVin = e.target.value.toUpperCase();
+                                                        setVehicle({ ...vehicle, vin: newVin });
+                                                        if (newVin.length !== 17) setVehicleDetails(null);
+                                                        if (newVin.length === 17) {
+                                                            decodeVin(newVin);
+                                                        }
+                                                    }}
+                                                    maxLength={17}
+                                                    className={`uppercase font-mono tracking-[0.2em] text-sm ${getInputClass(vehicle.vin)}`}
+                                                    placeholder="1HG..."
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Make & Model</label>
+                                                <input
+                                                    type="text"
+                                                    value={vehicle.makeModel}
+                                                    onChange={(e) => setVehicle({ ...vehicle, makeModel: e.target.value })}
+                                                    className={getInputClass(vehicle.makeModel)}
+                                                    placeholder="Toyota Camry"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Plate Number</label>
+                                                <input
+                                                    type="text"
+                                                    value={vehicle.plate}
+                                                    onChange={(e) => setVehicle({ ...vehicle, plate: e.target.value })}
+                                                    className={`uppercase ${getInputClass(vehicle.plate)}`}
+                                                    placeholder="ABC-123"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Year</label>
+                                                <input
+                                                    type="text"
+                                                    value={vehicle.year}
+                                                    onChange={(e) => setVehicle({ ...vehicle, year: e.target.value })}
+                                                    className={getInputClass(vehicle.year)}
+                                                    placeholder="2023"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => setShowDetailsModal(true)}
+                                            disabled={!vehicleDetails}
+                                            className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-wider transition-all
+                                                ${vehicleDetails
+                                                    ? 'bg-blue-600 text-white shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5'
+                                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <Info size={16} />
+                                            More Vehicle Details
+                                        </button>
+                                    </section>
                                 </div>
-                            ))}
-                        </div>
 
-                    </section>
+                                {/* Job Details Section */}
+                                <section className="pt-8 border-t border-gray-100">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] flex items-center gap-3">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
+                                            Job Details
+                                        </h2>
+                                        <button
+                                            onClick={addLineItem}
+                                            className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 text-[10px] font-black uppercase tracking-wider rounded-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm"
+                                        >
+                                            <span>+ Add Item</span>
+                                        </button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {items.map((item, index) => (
+                                            <div key={item.id} className="group flex items-start gap-4">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-300 mt-1 select-none">
+                                                    {(index + 1).toString().padStart(2, '0')}
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <select
+                                                        value={item.type}
+                                                        onChange={(e) => updateItem(item.id, 'type', e.target.value)}
+                                                        className="w-32 bg-gray-50 text-gray-900 text-xs font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3 px-3 outline-none cursor-pointer"
+                                                    >
+                                                        <option value="Repair">Repair</option>
+                                                        <option value="Replace">Replace</option>
+                                                        <option value="Blend">Blend</option>
+                                                        <option value="Polish/Touch up">Polish</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                    {item.type === 'Other' && (
+                                                        <input
+                                                            type="text"
+                                                            value={item.customTitle || ''}
+                                                            onChange={(e) => updateItem(item.id, 'customTitle', e.target.value)}
+                                                            className="w-32 bg-gray-50 text-gray-900 text-[10px] font-bold uppercase rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-2 px-3 outline-none placeholder-gray-400"
+                                                            placeholder="Title"
+                                                        />
+                                                    )}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={item.desc}
+                                                    onChange={(e) => updateItem(item.id, 'desc', e.target.value)}
+                                                    className="flex-1 bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-3 px-5 outline-none uppercase placeholder-gray-300"
+                                                    placeholder="Description of work..."
+                                                />
+                                                <button
+                                                    onClick={() => removeItem(item.id)}
+                                                    className="h-[46px] w-[46px] rounded-xl bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:shadow-red-500/10 hover:shadow-lg transition-all flex items-center justify-center"
+                                                    tabIndex={-1}
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
 
-                    {/* Special Instructions */}
-                    <section className="pt-8 border-t border-gray-100">
-                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] mb-6 flex items-center gap-3">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
-                            Special Instructions
-                        </h2>
-                        <textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className="w-full h-32 bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-4 px-5 outline-none resize-none"
-                            placeholder="Additional notes or instructions..."
-                        />
-                    </section>
-
+                                {/* Special Instructions */}
+                                <section className="pt-8 border-t border-gray-100">
+                                    <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] mb-6 flex items-center gap-3">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"></span>
+                                        Special Instructions
+                                    </h2>
+                                    <textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        className="w-full h-32 bg-gray-50 text-gray-900 font-bold rounded-xl border-2 border-transparent focus:border-blue-600/10 focus:ring-4 focus:ring-blue-600/5 focus:bg-white transition-all py-4 px-5 outline-none resize-none"
+                                        placeholder="Additional notes or instructions..."
+                                    />
+                                </section>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Footer / Actions */}
-                <div className="bg-gray-50 px-8 py-6 border-t border-gray-100 flex items-center justify-between gap-4">
-
-
+                <div className="bg-gray-50 px-8 py-6 border-t border-gray-100 flex items-center justify-end gap-4 shrink-0">
                     <button
                         onClick={handlePrint}
                         disabled={isPrinting}
-                        className="flex-1 max-w-xs flex items-center justify-center gap-3 px-8 py-3 bg-gray-900 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-xl shadow-gray-900/10 hover:shadow-2xl hover:shadow-gray-900/20 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="px-8 py-3 bg-gray-900 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-xl shadow-gray-900/10 hover:shadow-2xl hover:shadow-gray-900/20 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         {isPrinting ? (
-                            <span className="animate-pulse">Generating PDF...</span>
+                            <span className="animate-pulse">Loading...</span>
                         ) : (
                             <>
                                 <Printer size={18} />
-                                <span>Generate PDF</span>
+                                <span>Generate / Print PDF</span>
                             </>
                         )}
                     </button>
-
-                    <button
-                        onClick={() => setShowPreview(!showPreview)}
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-600 text-xs font-black uppercase tracking-wider rounded-xl border-2 border-transparent hover:bg-blue-100 transition-all"
-                    >
-                        <FileText size={18} />
-                        <span>{showPreview ? 'Hide Preview' : 'Show PDF Preview'}</span>
-                    </button>
                 </div>
+            </div>
 
-                {showPreview && (
-                    <div className="h-screen border-t-2 border-gray-100 bg-gray-50 p-8 flex justify-center">
-                        <div className="shadow-2xl rounded-sm overflow-hidden h-full w-full max-w-7xl">
-                            <PDFViewer width="100%" height="100%" className='border-none'>
-                                <PDFOrder data={pdfData} />
-                            </PDFViewer>
-                        </div>
-                    </div>
-                )}
-            </main>
+            {/* RIGHT PANEL: PDF Preview (50%) */}
+            <div className="w-1/2 h-full bg-gray-200 p-8 flex items-center justify-center">
+                <div className="w-full h-full shadow-2xl rounded-sm overflow-hidden bg-white">
+                    <PDFViewer width="100%" height="100%" className='border-none'>
+                        <PDFOrder data={pdfData} />
+                    </PDFViewer>
+                </div>
+            </div>
 
-            {/* Modal */}
+            {/* Modal - Vehicle Details */}
             {showDetailsModal && vehicleDetails && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -471,7 +583,6 @@ function App() {
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

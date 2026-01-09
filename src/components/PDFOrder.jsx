@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     },
     listItem: {
         flexDirection: 'row',
-        marginBottom: 4, // More space
+        marginBottom: 6, // Slightly more space between items
         paddingRight: 5,
     },
     bullet: {
@@ -175,9 +175,9 @@ const styles = StyleSheet.create({
         marginRight: 6,
     },
     itemText: {
-        fontSize: 11, // Increased from 10
+        fontSize: 10,
         flex: 1,
-        lineHeight: 1.3,
+        lineHeight: 1.4,
     },
 
     footer: {
@@ -327,7 +327,14 @@ const PDFOrder = ({ data }) => {
                             {replaceItems.map((item, i) => (
                                 <View key={i} style={styles.listItem}>
                                     <Text style={styles.bullet}>•</Text>
-                                    <Text style={styles.itemText}>{item.desc.toUpperCase()}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
+                                        <Text style={styles.itemText}>{item.desc.toUpperCase()}</Text>
+                                        {item.partNum && (
+                                            <Text style={{ fontSize: 9, color: '#444', marginLeft: 'auto', paddingLeft: 8, fontStyle: 'italic', textAlign: 'right', minWidth: 60 }}>
+                                                {item.partNum}
+                                            </Text>
+                                        )}
+                                    </View>
                                 </View>
                             ))}
                         </View>
