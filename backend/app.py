@@ -45,11 +45,21 @@ def extract_from_mitchell_estimate(pdf_path):
     
     # Extract Vehicle Description (year + make + model line)
     # Pattern: 4-digit year followed by make/model info
-    # Model info can contain quotes (119" WB), dots, etc.
-    vehicle_match = re.search(r'(\d{4})\s+(Honda|Toyota|Ford|Chevrolet|Nissan|Hyundai|Kia|BMW|Mercedes|Audi|Lexus|Mazda|Subaru|Volkswagen|Jeep|Dodge|GMC|Ram|Acura|Infiniti|Volvo|[A-Za-z]+)\s+([^\n]+?)(?:\d+\s*Door|\d+\.\d+L|License)', full_text, re.IGNORECASE)
+    # Model info can contain quotes (119" WB), dots, hyphens (Mercedes-Benz), etc.
+    # Look for lines that start with a year (19xx or 20xx) followed by make
+    # Common makes including hyphenated ones like Mercedes-Benz
+    makes_pattern = r'(Honda|Toyota|Ford|Chevrolet|Nissan|Hyundai|Kia|BMW|Mercedes-Benz|Mercedes|Audi|Lexus|Mazda|Subaru|Volkswagen|Jeep|Dodge|GMC|Ram|Acura|Infiniti|Volvo|Porsche|Land\s*Rover|Range\s*Rover|Cadillac|Lincoln|Buick|Chrysler|Tesla|Rivian|Lucid)'
+    
+    # First try to find a line that looks like: "2023 Mercedes-Benz GLE450..." or "2020 Toyota Sienna..."
+    # The year must be reasonable (1990-2030) to avoid matching VIN suffixes
+    vehicle_match = re.search(r'((?:19|20)\d{2})\s+' + makes_pattern + r'\s+([^\n]+?)(?:\s+\d+\s*Door|\s+Van|\s+\d+\.\d+L)', full_text, re.IGNORECASE)
     if vehicle_match:
         result['vehicle']['year'] = vehicle_match.group(1)
-        result['vehicle']['makeModel'] = f"{vehicle_match.group(2)} {vehicle_match.group(3).strip()}"
+        make = vehicle_match.group(2).strip()
+        model_raw = vehicle_match.group(3).strip()
+        # Clean up model - remove trailing " WB" pattern if present
+        model = re.sub(r'\s+\d+["\']?\s*WB.*$', '', model_raw, flags=re.IGNORECASE).strip()
+        result['vehicle']['makeModel'] = f"{make} {model}"
     
     # Extract job descriptions
     # Mitchell format has part names on one line and operation type nearby
@@ -192,12 +202,24 @@ def extract_from_mitchell_estimate(pdf_path):
                         if line_k not in ['Order', 'Labor', 'Total', 'Sublet', 'Notes']:
                             part_num_val = line_k
                             
-                            # Check for continuation (e.g. 74115-T0A- \n A01)
-                            # Only append if strictly looks like continuation (ends with hyphen)
+                            # Check for continuation on next line
+                            # Append if next line is a short alphanumeric code (part of the same part number)
+                            # e.g. "167 885 52 03" followed by "9999"
+                            # or "74115-T0A-" followed by "A01"
                             if k+1 < len(lines):
                                 next_p = lines[k+1].strip()
-                                if line_k.endswith('-') and re.match(r'^[A-Z0-9]+$', next_p):
-                                     part_num_val += next_p
+                                # Continuation criteria:
+                                # 1. Next line is alphanumeric (with spaces/dashes allowed)
+                                # 2. Next line is relatively short (< 15 chars) 
+                                # 3. Not a price, quantity, or common keyword
+                                if (re.match(r'^[A-Z0-9 -]+$', next_p) and 
+                                    len(next_p) < 15 and
+                                    not next_p.startswith('$') and
+                                    not next_p.startswith('(') and
+                                    next_p not in ['Yes', 'No', 'New', 'Body', 'Refinish', '1', '2', '3']):
+                                    # Check it's not just a quantity (single digit or 'INC')
+                                    if not (len(next_p) <= 3 and next_p.isdigit()):
+                                        part_num_val = f"{part_num_val} {next_p}"
                             break
 
             result['items'].append({
