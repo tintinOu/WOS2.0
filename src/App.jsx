@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 import PDFOrder from './components/PDFOrder';
-import { X, Calendar, Wrench, Printer, FileText, Info, Sparkles, Check, Loader2 } from 'lucide-react';
+import { X, Calendar, Wrench, Printer, FileText, Info, Sparkles, Check, Loader2, RotateCcw } from 'lucide-react';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
@@ -522,7 +522,26 @@ function App() {
                 </div>
 
                 {/* Footer / Actions */}
-                <div className="bg-gray-50 px-8 py-6 border-t border-gray-100 flex items-center justify-end gap-4 shrink-0">
+                <div className="bg-gray-50 px-8 py-6 border-t border-gray-100 flex items-center justify-between gap-4 shrink-0">
+                    <button
+                        onClick={() => {
+                            setCustomer({ name: '', phone: '' });
+                            setVehicle({ year: '', makeModel: '', plate: '', vin: '' });
+                            setDates({ start: '', end: '' });
+                            setNotes('');
+                            setItems([{ id: Date.now(), type: 'Repair', desc: '' }]);
+                            setVehicleDetails(null);
+                            setHighlightMissing(false);
+                            if (dateInputRef.current) {
+                                dateInputRef.current._flatpickr?.clear();
+                            }
+                        }}
+                        className="px-6 py-3 bg-white text-gray-600 text-xs font-black uppercase tracking-wider rounded-xl border-2 border-gray-200 hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-all flex items-center gap-2"
+                    >
+                        <RotateCcw size={16} />
+                        <span>Reset</span>
+                    </button>
+                    <span className="text-[10px] text-gray-400 font-medium tracking-wider">Version 2.0.2</span>
                     <button
                         onClick={handlePrint}
                         disabled={isPrinting}
