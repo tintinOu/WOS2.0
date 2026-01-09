@@ -20,8 +20,9 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end'
     },
     headerLeft: {
-        flex: 1,
+        // flex: 1, // Removed to prevent crushing the right side
         justifyContent: 'flex-end',
+        width: '60%', // Give fixed percentage or let it grow naturally if needed, but 60% is safe
     },
     headerTitle: {
         fontSize: 24,
@@ -52,6 +53,7 @@ const styles = StyleSheet.create({
     dateBlock: {
         alignItems: 'flex-end',
         justifyContent: 'flex-end',
+        minWidth: 150, // Ensure it has space
     },
     // Date Rows
     dateRow: {

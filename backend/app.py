@@ -38,14 +38,15 @@ def extract_from_mitchell_estimate(pdf_path):
     if vin_match:
         result['vehicle']['vin'] = vin_match.group(1)
     
-    # Extract License Plate (format: XX-XXXXXXX)
-    plate_match = re.search(r'License\s*\n?\s*([A-Z]{2}-[A-Z0-9]+)', full_text)
+    # Extract License Plate (format: XX-XXXXXXX, allowing spaces)
+    plate_match = re.search(r'License\s*\n?\s*([A-Z]{2}-[A-Z0-9 ]+)', full_text)
     if plate_match:
         result['vehicle']['plate'] = plate_match.group(1)
     
     # Extract Vehicle Description (year + make + model line)
     # Pattern: 4-digit year followed by make/model info
-    vehicle_match = re.search(r'(\d{4})\s+(Honda|Toyota|Ford|Chevrolet|Nissan|Hyundai|Kia|BMW|Mercedes|Audi|Lexus|Mazda|Subaru|Volkswagen|Jeep|Dodge|GMC|Ram|Acura|Infiniti|Volvo|[A-Za-z]+)\s+([A-Za-z0-9\-\s]+?)(?:\d+\s*Door|\d+\.\d+L|License)', full_text, re.IGNORECASE)
+    # Model info can contain quotes (119" WB), dots, etc.
+    vehicle_match = re.search(r'(\d{4})\s+(Honda|Toyota|Ford|Chevrolet|Nissan|Hyundai|Kia|BMW|Mercedes|Audi|Lexus|Mazda|Subaru|Volkswagen|Jeep|Dodge|GMC|Ram|Acura|Infiniti|Volvo|[A-Za-z]+)\s+([^\n]+?)(?:\d+\s*Door|\d+\.\d+L|License)', full_text, re.IGNORECASE)
     if vehicle_match:
         result['vehicle']['year'] = vehicle_match.group(1)
         result['vehicle']['makeModel'] = f"{vehicle_match.group(2)} {vehicle_match.group(3).strip()}"
@@ -184,9 +185,9 @@ def extract_from_mitchell_estimate(pdf_path):
                         continue
                         
                     # Check if line looks like a part number
-                    # e.g. HO1014102C, 71140T0AA01
-                    # Must be mostly alphanumeric, at least 5 chars, usually uppercase
-                    if len(line_k) >= 3 and re.match(r'^[A-Z0-9-]+$', line_k) and any(c.isdigit() for c in line_k):
+                    # e.g. HO1014102C, 71140T0AA01, 971 807 180
+                    # Must be mostly alphanumeric, at least 5 chars, usually uppercase, allow spaces/dashes
+                    if len(line_k) >= 3 and re.match(r'^[A-Z0-9 -]+$', line_k) and any(c.isdigit() for c in line_k):
                         # Avoid matching generic terms
                         if line_k not in ['Order', 'Labor', 'Total', 'Sublet', 'Notes']:
                             part_num_val = line_k

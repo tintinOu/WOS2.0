@@ -29,13 +29,16 @@ function App() {
         if (dateInputRef.current) {
             flatpickr(dateInputRef.current, {
                 mode: "range",
-                dateFormat: "m/d",
+                dateFormat: "M jS D", // e.g. Jan 6th Tue
+                locale: {
+                    rangeSeparator: ' TO ' // uppercase separator
+                },
                 onChange: (selectedDates) => {
                     if (selectedDates.length === 2) {
                         const format = (d) => {
                             const mm = String(d.getMonth() + 1).padStart(2, '0');
                             const dd = String(d.getDate()).padStart(2, '0');
-                            return `${mm}/${dd}`;
+                            return `${mm}/${dd}`; // Keep internal state as MM/DD for PDF
                         };
                         setDates({
                             start: format(selectedDates[0]),
@@ -352,7 +355,7 @@ function App() {
                                                 type="text"
                                                 readOnly
                                                 placeholder="Select Date Range..."
-                                                className={`w-full text-center rounded-xl border-2 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 py-4 px-4 outline-none transition-all cursor-pointer shadow-sm
+                                                className={`uppercase w-full text-center rounded-xl border-2 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 py-4 px-4 outline-none transition-all cursor-pointer shadow-sm
                                                     ${(highlightMissing && (!dates.start || !dates.end))
                                                         ? 'bg-yellow-50 border-yellow-400 text-gray-900 font-black'
                                                         : 'bg-white border-gray-100 text-gray-900 font-black hover:border-gray-200'}`}
