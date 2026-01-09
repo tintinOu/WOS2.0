@@ -355,7 +355,7 @@ function DesktopLayout({ form }) {
                         <RotateCcw size={16} />
                         <span>Reset</span>
                     </button>
-                    <span className="text-[10px] text-gray-400 font-medium tracking-wider">Version 2.0.2</span>
+                    <span className="text-[10px] text-gray-400 font-medium tracking-wider">Version 2.0.3</span>
                     <button
                         onClick={handlePrint}
                         disabled={isPrinting}
