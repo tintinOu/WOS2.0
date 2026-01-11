@@ -5,6 +5,7 @@ import { X, Calendar, Wrench, Printer, FileText, Info, Sparkles, Check, Loader2,
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
+import FloatingLabelInput from '../components/FloatingLabelInput';
 
 /**
  * Desktop layout for the Work Order System.
@@ -150,26 +151,19 @@ function DesktopLayout({ form }) {
                                         Customer Details
                                     </h2>
                                     <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
-                                            <input
-                                                type="text"
-                                                value={customer.name}
-                                                onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                                                className={getInputClass(customer.name)}
-                                                placeholder="e.g. Jane Smith"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                value={customer.phone}
-                                                onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                                                className={getInputClass(customer.phone)}
-                                                placeholder="(555) 000-0000"
-                                            />
-                                        </div>
+                                        <FloatingLabelInput
+                                            label="Full Name"
+                                            value={customer.name}
+                                            onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                                            isMissing={highlightMissing && !customer.name}
+                                        />
+                                        <FloatingLabelInput
+                                            label="Phone Number"
+                                            type="tel"
+                                            value={customer.phone}
+                                            onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                                            isMissing={highlightMissing && !customer.phone}
+                                        />
                                     </div>
                                 </div>
 
@@ -206,9 +200,8 @@ function DesktopLayout({ form }) {
                                 </h2>
                                 <div className="grid grid-cols-2 gap-4 mb-6">
                                     <div className="col-span-2">
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">VIN Number</label>
-                                        <input
-                                            type="text"
+                                        <FloatingLabelInput
+                                            label="VIN Number"
                                             value={vehicle.vin}
                                             onChange={(e) => {
                                                 const newVin = e.target.value.toUpperCase();
@@ -218,38 +211,33 @@ function DesktopLayout({ form }) {
                                                 }
                                             }}
                                             maxLength={17}
-                                            className={`uppercase font-mono tracking-[0.2em] text-sm ${getInputClass(vehicle.vin)}`}
-                                            placeholder="1HG..."
+                                            isMissing={highlightMissing && !vehicle.vin}
+                                            className="uppercase font-mono tracking-[0.2em] text-sm"
                                         />
                                     </div>
                                     <div className="col-span-2">
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Make & Model</label>
-                                        <input
-                                            type="text"
+                                        <FloatingLabelInput
+                                            label="Make & Model"
                                             value={vehicle.makeModel}
                                             onChange={(e) => setVehicle({ ...vehicle, makeModel: e.target.value })}
-                                            className={getInputClass(vehicle.makeModel)}
-                                            placeholder="Toyota Camry"
+                                            isMissing={highlightMissing && !vehicle.makeModel}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Plate Number</label>
-                                        <input
-                                            type="text"
+                                        <FloatingLabelInput
+                                            label="Plate Number"
                                             value={vehicle.plate}
                                             onChange={(e) => setVehicle({ ...vehicle, plate: e.target.value })}
-                                            className={`uppercase ${getInputClass(vehicle.plate)}`}
-                                            placeholder="ABC-123"
+                                            isMissing={highlightMissing && !vehicle.plate}
+                                            className="uppercase"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Year</label>
-                                        <input
-                                            type="text"
+                                        <FloatingLabelInput
+                                            label="Year"
                                             value={vehicle.year}
                                             onChange={(e) => setVehicle({ ...vehicle, year: e.target.value })}
-                                            className={getInputClass(vehicle.year)}
-                                            placeholder="2023"
+                                            isMissing={highlightMissing && !vehicle.year}
                                         />
                                     </div>
                                 </div>
